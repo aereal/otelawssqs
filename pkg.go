@@ -1,1 +1,1 @@
-package otellambda
+package otelawssqs
