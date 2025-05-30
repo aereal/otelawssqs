@@ -1,13 +1,11 @@
 package consumer_test
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/aereal/otelawssqs/consumer"
+	"github.com/aereal/otelawssqs/internal/testutils"
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -86,7 +84,7 @@ func TestInstrumentation_StartMessageSpan(t *testing.T) {
 				t.Fatal(err)
 			}
 			gotSpans := exporter.GetSpans()
-			if diff := cmpSpans(tc.wantSpans, gotSpans); diff != "" {
+			if diff := testutils.DiffSpans(tc.wantSpans, gotSpans); diff != "" {
 				t.Errorf("spans (-want, +got):\n%s", diff)
 			}
 		})
@@ -133,58 +131,11 @@ func TestInstrumentation_StartEventSpan(t *testing.T) {
 				t.Fatal(err)
 			}
 			gotSpans := exporter.GetSpans()
-			if diff := cmpSpans(tc.wantSpans, gotSpans); diff != "" {
+			if diff := testutils.DiffSpans(tc.wantSpans, gotSpans); diff != "" {
 				t.Errorf("spans (-want, +got):\n%s", diff)
 			}
 		})
 	}
-}
-
-func cmpSpans(want, got tracetest.SpanStubs) string {
-	return cmp.Diff(want, got,
-		cmp.Transformer("attribute.KeyValue.slice", func(attrs []attribute.KeyValue) attributeMap {
-			return fromSet(attribute.NewSet(attrs...))
-		}),
-		cmp.Transformer("attribute.Set", func(attrs attribute.Set) attributeMap {
-			return fromSet(attrs)
-		}),
-		cmp.Transformer("trace.SpanContext", func(sc trace.SpanContext) map[string]any {
-			jv, err := json.Marshal(sc)
-			if err != nil {
-				panic(err)
-			}
-			var m map[string]any
-			if err := json.Unmarshal(jv, &m); err != nil {
-				panic(err)
-			}
-			return m
-		}),
-		cmpopts.IgnoreFields(sdktrace.Event{}, "Time"),
-		cmpopts.IgnoreFields(tracetest.SpanStub{},
-			"EndTime",
-			"Parent",
-			"SpanContext",
-			"StartTime",
-			"Resource", // Resource contains telemetry.sdk.version that may change if the library updated
-			"InstrumentationScope",
-			"InstrumentationLibrary", // InstrumentationLibrary is deprecated
-		),
-	)
-}
-
-func fromSet(set attribute.Set) attributeMap {
-	r := attributeMap{}
-	for _, kv := range set.ToSlice() {
-		r[string(kv.Key)] = attributeValue{Type: kv.Value.Type().String(), Value: kv.Value.Emit()}
-	}
-	return r
-}
-
-type attributeMap map[string]attributeValue
-
-type attributeValue struct {
-	Type  string
-	Value string
 }
 
 func must[V any](value V, err error) V {
