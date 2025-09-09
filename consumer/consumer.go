@@ -35,6 +35,20 @@ func (o *OptionWithTracer) applyNewOption(cfg *newConfig) {
 	cfg.tracer = o.tracer
 }
 
+// WithTracerProvider tells that use the given [trace.TracerProvider] to build a new [trace.Tracer].
+func WithTracerProvider(tp trace.TracerProvider) *OptionWithTracerProvider {
+	return &OptionWithTracerProvider{tp: tp}
+}
+
+// OptionWithTracerProvider is a [NewOption] that injects a [trace.TracerProvider] for building new [trace.Tracer].
+type OptionWithTracerProvider struct{ tp trace.TracerProvider }
+
+var _ NewOption = (*OptionWithTracerProvider)(nil)
+
+func (o *OptionWithTracerProvider) applyNewOption(cfg *newConfig) {
+	cfg.tracer = o.tp.Tracer(defaultTracerName)
+}
+
 const (
 	defaultTracerName = "github.com/aereal/otelawssqs/consumer.Instrumentation"
 )

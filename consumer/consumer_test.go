@@ -140,6 +140,25 @@ func TestInstrumentation_StartEventSpan(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
+	input := &events.SQSEvent{
+		Records: []events.SQSMessage{
+			{},
+			{},
+		},
+	}
+	wantSpans := tracetest.SpanStubs{
+		{
+			Name:     "multiple_sources process",
+			SpanKind: trace.SpanKindConsumer,
+			Attributes: []attribute.KeyValue{
+				attribute.Key("faas.trigger").String("pubsub"),
+				attribute.Key("messaging.batch.message_count").Int64(2),
+				attribute.Key("messaging.operation.type").String("process"),
+				attribute.Key("messaging.system").String("aws_sqs"),
+			},
+		},
+	}
+
 	t.Run("no options", func(t *testing.T) {
 		orig := otel.GetTracerProvider()
 		t.Cleanup(func() { otel.SetTracerProvider(orig) })
@@ -149,30 +168,26 @@ func TestNew(t *testing.T) {
 
 		inst := consumer.New()
 		ctx := t.Context()
-		input := &events.SQSEvent{
-			Records: []events.SQSMessage{
-				{},
-				{},
-			},
-		}
 		_, span := inst.StartEventSpan(ctx, input)
 		span.End()
 		if err := tp.ForceFlush(ctx); err != nil {
 			t.Fatal(err)
 		}
 		gotSpans := exporter.GetSpans()
-		wantSpans := tracetest.SpanStubs{
-			{
-				Name:     "multiple_sources process",
-				SpanKind: trace.SpanKindConsumer,
-				Attributes: []attribute.KeyValue{
-					attribute.Key("faas.trigger").String("pubsub"),
-					attribute.Key("messaging.batch.message_count").Int64(2),
-					attribute.Key("messaging.operation.type").String("process"),
-					attribute.Key("messaging.system").String("aws_sqs"),
-				},
-			},
+		if diff := testutils.DiffSpans(wantSpans, gotSpans); diff != "" {
+			t.Errorf("spans (-want, +got):\n%s", diff)
 		}
+	})
+	t.Run("WithTracerProvider", func(t *testing.T) {
+		exporter := tracetest.NewInMemoryExporter()
+		tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+		ctx := t.Context()
+		_, span := consumer.New(consumer.WithTracerProvider(tp)).StartEventSpan(ctx, input)
+		span.End()
+		if err := tp.ForceFlush(ctx); err != nil {
+			t.Fatal(err)
+		}
+		gotSpans := exporter.GetSpans()
 		if diff := testutils.DiffSpans(wantSpans, gotSpans); diff != "" {
 			t.Errorf("spans (-want, +got):\n%s", diff)
 		}
