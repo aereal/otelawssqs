@@ -12,9 +12,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type newConfig struct {
+	tracer trace.Tracer
+}
+
 // NewOption configures [Instrumentation] initialization.
 type NewOption interface {
-	applyNewOption(i *Instrumentation)
+	applyNewOption(cfg *newConfig)
 }
 
 // WithTracer sets a custom [trace.Tracer] for [Instrumentation].
@@ -27,8 +31,22 @@ var (
 	_ NewOption = (*OptionWithTracer)(nil)
 )
 
-func (o *OptionWithTracer) applyNewOption(i *Instrumentation) {
-	i.tracer = o.tracer
+func (o *OptionWithTracer) applyNewOption(cfg *newConfig) {
+	cfg.tracer = o.tracer
+}
+
+// WithTracerProvider tells that use the given [trace.TracerProvider] to build a new [trace.Tracer].
+func WithTracerProvider(tp trace.TracerProvider) *OptionWithTracerProvider {
+	return &OptionWithTracerProvider{tp: tp}
+}
+
+// OptionWithTracerProvider is a [NewOption] that injects a [trace.TracerProvider] for building new [trace.Tracer].
+type OptionWithTracerProvider struct{ tp trace.TracerProvider }
+
+var _ NewOption = (*OptionWithTracerProvider)(nil)
+
+func (o *OptionWithTracerProvider) applyNewOption(cfg *newConfig) {
+	cfg.tracer = o.tp.Tracer(defaultTracerName)
 }
 
 const (
@@ -39,12 +57,15 @@ const (
 //
 // If no tracer is explicitly set, a default tracer is used.
 func New(opts ...NewOption) *Instrumentation {
-	i := &Instrumentation{}
+	var cfg newConfig
 	for _, o := range opts {
-		o.applyNewOption(i)
+		o.applyNewOption(&cfg)
 	}
-	if i.tracer == nil {
-		i.tracer = otel.GetTracerProvider().Tracer(defaultTracerName)
+	if cfg.tracer == nil {
+		cfg.tracer = otel.GetTracerProvider().Tracer(defaultTracerName)
+	}
+	i := &Instrumentation{
+		tracer: cfg.tracer,
 	}
 	return i
 }
