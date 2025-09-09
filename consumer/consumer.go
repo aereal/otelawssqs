@@ -57,7 +57,7 @@ type Instrumentation struct {
 // StartEventSpan starts a span for an Amazon SQS event containing multiple messages.
 //
 // It is useful for representing the entire batch processing operation.
-func (i *Instrumentation) StartEventSpan(ctx context.Context, ev events.SQSEvent) (context.Context, trace.Span) {
+func (i *Instrumentation) StartEventSpan(ctx context.Context, ev *events.SQSEvent) (context.Context, trace.Span) {
 	attrs := []attribute.KeyValue{
 		semconv.FaaSTriggerPubsub,
 		semconv.MessagingOperationTypeDeliver,
@@ -74,7 +74,7 @@ func (i *Instrumentation) StartEventSpan(ctx context.Context, ev events.SQSEvent
 // StartMessageSpan starts a span for an individual Amazon SQS message.
 //
 // It extracts remote context using AWS X-Ray propagation and links it to the span.
-func (i *Instrumentation) StartMessageSpan(ctx context.Context, msg events.SQSMessage) (context.Context, trace.Span) {
+func (i *Instrumentation) StartMessageSpan(ctx context.Context, msg *events.SQSMessage) (context.Context, trace.Span) {
 	attrs := []attribute.KeyValue{
 		semconv.FaaSTriggerPubsub,
 		semconv.MessagingOperationTypeDeliver,

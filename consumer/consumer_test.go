@@ -15,12 +15,12 @@ import (
 func TestInstrumentation_StartMessageSpan(t *testing.T) {
 	testCases := []struct {
 		name      string
-		input     events.SQSMessage
+		input     *events.SQSMessage
 		wantSpans tracetest.SpanStubs
 	}{
 		{
 			name: "no X-Ray trace header",
-			input: events.SQSMessage{
+			input: &events.SQSMessage{
 				EventSource: "queue_1",
 				MessageId:   "0xdeadbeaf",
 			},
@@ -40,7 +40,7 @@ func TestInstrumentation_StartMessageSpan(t *testing.T) {
 		},
 		{
 			name: "X-Ray trace header supplied",
-			input: events.SQSMessage{
+			input: &events.SQSMessage{
 				EventSource: "queue_1",
 				MessageId:   "0xdeadbeaf",
 				Attributes: map[string]string{
@@ -94,12 +94,12 @@ func TestInstrumentation_StartMessageSpan(t *testing.T) {
 func TestInstrumentation_StartEventSpan(t *testing.T) {
 	testCases := []struct {
 		name      string
-		input     events.SQSEvent
+		input     *events.SQSEvent
 		wantSpans tracetest.SpanStubs
 	}{
 		{
 			name: "single message",
-			input: events.SQSEvent{
+			input: &events.SQSEvent{
 				Records: []events.SQSMessage{
 					{},
 					{},
